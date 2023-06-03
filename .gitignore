@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 
 # folder
+data
 datasets
 features
 
