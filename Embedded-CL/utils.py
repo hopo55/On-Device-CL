@@ -23,7 +23,6 @@ class CMA(object):
         self.avg = (X + self.N * self.avg) / (self.N + 1)
         self.N = self.N + 1
 
-
 def randint(max_val, num_samples):
     """
     return num_samples random integers in the range(max_val)
@@ -151,6 +150,7 @@ def accuracy(output, target, topk=(1,), output_has_class_ids=False):
         res = []
         for k in topk:
             correct_k = correct[:k].contiguous().view(-1).float().sum(0, keepdim=True)
+            print(batch_size)
             res.append(correct_k.mul_(100.0 / batch_size))
         return res
 

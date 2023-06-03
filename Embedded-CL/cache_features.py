@@ -93,19 +93,19 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     # directory parameters
-    parser.add_argument('--dataset', type=str, default='places', choices=['places', 'imagenet', 'places_lt'])
-    parser.add_argument('--images_dir', type=str)  # path to images (folder with 'train' and 'val' for data)
-    parser.add_argument('--cache_h5_dir', type=str, default=None)
+    parser.add_argument('--dataset', type=str, default='places_lt', choices=['places', 'imagenet', 'places_lt'])
+    parser.add_argument('--images_dir', type=str, default='datasets/Places-365/places365_standard')  # path to images (folder with 'train' and 'val' for data)
+    parser.add_argument('--cache_h5_dir', type=str, default='features/places_lt/supervised_resnet18_places_lt_avg')
     parser.add_argument('--lt_txt_file', type=str,
-                        default='/media/tyler/Data/datasets/Places-LT/Places_LT_%s.txt')
+                        default='datasets/Places-LT/Places_LT_%s.txt')
 
     # other parameters
-    parser.add_argument('--arch', type=str,
+    parser.add_argument('--arch', type=str, default='resnet18',
                         choices=['resnet18', 'mobilenet_v3_small', 'mobilenet_v3_large', 'efficientnet_b0',
                                  'efficientnet_b1'])
-    parser.add_argument('--batch_size', type=int, default=512)
+    parser.add_argument('--batch_size', type=int, default=1024)
     parser.add_argument('--pooling_type', type=str, default='avg', choices=['avg', 'max'])
-    parser.add_argument('--num_workers', type=int, default=8)
+    parser.add_argument('--num_workers', type=int, default=16)
     parser.add_argument('--device', type=str, default='cuda')
 
     args = parser.parse_args()

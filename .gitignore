@@ -3,11 +3,19 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# folder
+datasets
+features
+
+# zip file
+*.zip
+
 # C extensions
 *.so
 
 # Distribution / packaging
 .Python
+
 build/
 develop-eggs/
 dist/
