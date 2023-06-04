@@ -285,7 +285,6 @@ if __name__ == '__main__':
         if args.data_ordering == 'class_iid':
             # get class ordering
             class_remap = remap_classes(args.num_classes, args.permutation_seed)
-            print(class_remap)
             streaming_class_iid_training(args, classifier, class_remap)
         elif args.data_ordering == 'iid':
             streaming_iid_training(args, classifier)
