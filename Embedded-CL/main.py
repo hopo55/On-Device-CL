@@ -189,22 +189,23 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     # directory parameters
-    parser.add_argument('--dataset', type=str, default='places_lt')
-    parser.add_argument('--h5_features_dir', type=str, default='features/places_lt/supervised_resnet18_places_lt_avg')
-    parser.add_argument('--save_dir', type=str, default='results/streaming_ncm_LR_0.001_resnet18_places_lt_avg_class_iid_seed_0')
-    parser.add_argument('--expt_name', type=str, default='streaming_ncm_LR_0.001_resnet18_places_lt_avg_class_iid_seed_0')
+    parser.add_argument('--dataset', type=str, default='CIFAR10', choices=['MNIST', 'CIFAR10', 'CIFAR100', 'HAR'])
+    parser.add_argument('--save_dir', type=str, default=None)
+    parser.add_argument('--expt_name', type=str)
     parser.add_argument('--ckpt', type=str, default=None)
     parser.add_argument('--evaluate', type=bool_flag, default=False)
 
     # general parameters
-    parser.add_argument('--dataset_in_memory', type=bool_flag, default=False)
-    parser.add_argument('--num_workers', type=int, default=16)
+    parser.add_argument('--dataset_in_memory', type=bool_flag, default=True)
+    parser.add_argument('--num_workers', type=int, default=0)
     parser.add_argument('--device', type=str, default='cuda')
-    parser.add_argument('--arch', type=str, default='resnet18')
-    parser.add_argument('--num_classes', type=int, default=365)  # total number of classes in the dataset
+    parser.add_argument('--arch', type=str,
+                        choices=['resnet18', 'mobilenet_v3_small', 'mobilenet_v3_large', 'efficientnet_b0',
+                                 'efficientnet_b1'])
+    parser.add_argument('--num_classes', type=int, default=10)  # total number of classes in the dataset
     parser.add_argument('--batch_size', type=int, default=512)  # batch size for testing
     parser.add_argument('--class_increment', type=int, default=1)
-    parser.add_argument('--evaluate_increment', type=int, default=75)  # how many classes before evaluation
+    parser.add_argument('--evaluate_increment', type=int, default=5)  # how many classes before evaluation
     parser.add_argument('--cl_model', type=str, default='ncm',
                         choices=['slda', 'fine_tune', 'replay', 'ncm', 'nb', 'ovr', 'perceptron', 'cbcl'])
     parser.add_argument('--permutation_seed', type=int, default=0)
@@ -215,8 +216,8 @@ if __name__ == '__main__':
     parser.add_argument('--shrinkage', type=float, default=1e-4)  # shrinkage for SLDA/Naive Bayes
 
     # Fine-Tune & Replay parameters
-    parser.add_argument('--lr', type=float, default=0.001)
-    parser.add_argument('--wd', type=float, default=1e-5)
+    parser.add_argument('--lr', type=float, default=0.1)
+    parser.add_argument('--wd', type=float, default=1e-5, help='weight decay')
     parser.add_argument('--buffer_size', type=int, default=7300)
     parser.add_argument('--replay_size', type=int, default=50)
 
@@ -227,7 +228,7 @@ if __name__ == '__main__':
     parser.add_argument('--weighted_predictions', type=bool_flag, default=True)
 
     args = parser.parse_args()
-    print("Arguments {}".format(json.dumps(vars(args), indent=4, sort_keys=True)))
+    # print("Arguments {}".format(json.dumps(vars(args), indent=4, sort_keys=True)))
 
     if args.save_dir is None:
         args.save_dir = 'streaming_experiments/' + args.expt_name
@@ -284,6 +285,7 @@ if __name__ == '__main__':
         if args.data_ordering == 'class_iid':
             # get class ordering
             class_remap = remap_classes(args.num_classes, args.permutation_seed)
+            print(class_remap)
             streaming_class_iid_training(args, classifier, class_remap)
         elif args.data_ordering == 'iid':
             streaming_iid_training(args, classifier)
