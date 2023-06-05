@@ -15,7 +15,9 @@ from models.CBCL import CBCL
 
 def get_class_data_loader(args, class_remap, training, min_class, max_class, batch_size=128, shuffle=False,
                           dataset='places', return_item_ix=False):
-    if dataset == 'places' or dataset == 'imagenet' or dataset == 'places_lt':
+    if dataset == 'places' or dataset == 'imagenet' or dataset == 'places_lt' \
+        or dataset == 'CIFAR10' or dataset == 'CIFAR100':
+        
         h5_file_path = os.path.join(args.h5_features_dir, '%s_features.h5')
         if training:
             data = 'train'
@@ -188,7 +190,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     # directory parameters
-    parser.add_argument('--dataset', type=str, default='places', choices=['places', 'imagenet', 'places_lt'])
+    parser.add_argument('--dataset', type=str, default='CIFAR10', choices=['CIFAR10', 'CIFAR100', 'places', 'imagenet', 'places_lt'])
     parser.add_argument('--h5_features_dir', type=str, default=None)
     parser.add_argument('--save_dir', type=str, default=None)
     parser.add_argument('--expt_name', type=str)

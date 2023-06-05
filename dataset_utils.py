@@ -9,8 +9,7 @@ import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 
 
-def load_torchvision_full_image_dataset(traindir, valdir, batch_size=256, test_batch_size=256, shuffle=False,
-                                        num_workers=8):
+def load_torchvision_full_image_dataset(traindir, valdir, batch_size=256, test_batch_size=256, shuffle=False, num_workers=8):
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                      std=[0.229, 0.224, 0.225])
 
@@ -87,6 +86,38 @@ def load_places_lt_full_image_dataset(image_dir, txt_file_root, batch_size=256, 
     val_dataset = LT_Dataset(image_dir, txt_file_root % 'test', transform=transform, return_item_ix=return_item_ix)
     val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=test_batch_size, num_workers=num_workers,
                                              pin_memory=True, shuffle=False)
+
+    return train_loader, val_loader
+
+
+def load_cifar_dataset(args, batch_size=256):
+    dataset_stats = {
+        'CIFAR10' : {'mean': (0.49139967861519607, 0.48215840839460783, 0.44653091444546567),
+                    'std' : (0.2470322324632819, 0.24348512800005573, 0.26158784172796434),
+                    'size' : 32},
+        'CIFAR100': {'mean': (0.5070751592371323, 0.48654887331495095, 0.4409178433670343),
+                    'std' : (0.2673342858792409, 0.25643846291708816, 0.2761504713256834),
+                    'size' : 32}
+        }
+
+    tarin_transform = transforms.Compose(
+                [transforms.RandomCrop(32, padding=4),
+                 transforms.RandomHorizontalFlip(),
+                 transforms.ToTensor(),
+                 transforms.Normalize(dataset_stats[args.dataset]['mean'], dataset_stats[args.dataset]['std']),]
+                )
+    val_transform = transforms.Compose(
+                [transforms.ToTensor(),
+                 transforms.Normalize(dataset_stats[args.dataset]['mean'], dataset_stats[args.dataset]['std']),]
+                )
+    
+    data_path = args.images_dir + '/' + args.dataset
+    
+    trainset = datasets.CIFAR10(root=data_path, train=True, download=True, transform=tarin_transform)
+    train_loader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=8)
+
+    valset = datasets.CIFAR10(root=data_path, train=False, download=True, transform=val_transform)
+    val_loader = torch.utils.data.DataLoader(valset, batch_size=batch_size, shuffle=False, num_workers=8)
 
     return train_loader, val_loader
 
