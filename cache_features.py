@@ -83,6 +83,7 @@ def make_h5_feature_file(dataset, model, loader, h5_file_full_path, data_type, f
 
 
 def cache_features(args):
+    print('\nmodel : ', args.arch)
     train_loader, val_loader = get_data_loaders(args)
     backbone, feature_size = get_backbone(args.arch, args.pooling_type)
 
