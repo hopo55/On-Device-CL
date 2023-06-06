@@ -74,8 +74,8 @@ def update_accuracies(class_remap, curr_max_class, classifier, accuracies, save_
     accuracies['seen_classes_top5'].append(float(seen_top5))
 
     # save accuracies and predictions out
-    save_accuracies(accuracies, min_class_trained=0, max_class_trained=curr_max_class, save_path=save_dir)
-    save_predictions(seen_probas, 0, curr_max_class, save_dir)
+    # save_accuracies(accuracies, min_class_trained=0, max_class_trained=curr_max_class, save_path=save_dir)
+    # save_predictions(seen_probas, 0, curr_max_class, save_dir)
 
 
 def streaming_class_iid_training(args, classifier, class_remap):
@@ -107,8 +107,8 @@ def streaming_class_iid_training(args, classifier, class_remap):
                                         shuffle=False, dataset=args.dataset, return_item_ix=True)
     probas, y_test = classifier.evaluate_(test_loader)
     top1, top5 = accuracy(probas, y_test, topk=(1, 5))
-    accuracies['seen_classes_top1'].append(float(top1))
-    accuracies['seen_classes_top5'].append(float(top5))
+    # accuracies['seen_classes_top1'].append(float(top1))
+    # accuracies['seen_classes_top5'].append(float(top5))
 
     # save accuracies, predictions, and model out
     save_accuracies(accuracies, min_class_trained=0, max_class_trained=args.num_classes, save_path=args.save_dir)
