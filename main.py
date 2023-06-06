@@ -230,7 +230,7 @@ if __name__ == '__main__':
     parser.add_argument('--weighted_predictions', type=bool_flag, default=True)
 
     args = parser.parse_args()
-    print("Arguments {}".format(json.dumps(vars(args), indent=4, sort_keys=True)))
+    # print("Arguments {}".format(json.dumps(vars(args), indent=4, sort_keys=True)))
 
     if args.save_dir is None:
         args.save_dir = 'streaming_experiments/' + args.expt_name

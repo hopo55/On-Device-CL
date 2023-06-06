@@ -22,7 +22,7 @@ def get_data_loaders(args):
                                                                      batch_size=args.batch_size,
                                                                      test_batch_size=args.batch_size,
                                                                      num_workers=args.num_workers, shuffle=False)
-    elif args.dataset == 'CIFAR10':
+    elif args.dataset == 'CIFAR10' or args.dataset == 'CIFAR100':
         train_loader, val_loader = load_cifar_dataset(args, batch_size=args.batch_size)
     else:
         raise NotImplementedError
