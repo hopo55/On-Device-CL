@@ -66,8 +66,7 @@ def compute_accuracies(loader, classifier):
 
 
 def update_accuracies(class_remap, curr_max_class, classifier, accuracies, save_dir, batch_size, shuffle, dataset):
-    seen_classes_test_loader = get_class_data_loader(args, class_remap, False, 0, curr_max_class, batch_size=batch_size,
-                                                     shuffle=shuffle, dataset=dataset, return_item_ix=True)
+    seen_classes_test_loader = get_class_data_loader(args, class_remap, False, 0, curr_max_class, batch_size=batch_size, shuffle=shuffle, dataset=dataset, return_item_ix=True)
     seen_probas, seen_top1, seen_top5 = compute_accuracies(seen_classes_test_loader, classifier)
 
     print('\nSeen Classes (%d-%d): top1=%0.2f%% -- top5=%0.2f%%' % (0, curr_max_class - 1, seen_top1, seen_top5))
@@ -97,11 +96,10 @@ def streaming_class_iid_training(args, classifier, class_remap):
         # fit model
         classifier.train_(train_loader)
 
-        if curr_class_ix != 0 and ((curr_class_ix + 1) % args.evaluate_increment == 0):
+        # if curr_class_ix != 0 and ((curr_class_ix + 1) % args.evaluate_increment == 0):
             # print("\nEvaluating classes from {} to {}".format(0, max_class))
             # output accuracies to console and save out to json file
-            update_accuracies(class_remap, max_class, classifier, accuracies, args.save_dir, args.batch_size,
-                              shuffle=False, dataset=args.dataset)
+        update_accuracies(class_remap, max_class, classifier, accuracies, args.save_dir, args.batch_size, shuffle=False, dataset=args.dataset)
             # classifier.save_model(save_dir, save_name % max_class)
 
     # print final accuracies and time
