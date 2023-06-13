@@ -90,6 +90,44 @@ def load_places_lt_full_image_dataset(image_dir, txt_file_root, batch_size=256, 
     return train_loader, val_loader
 
 
+def load_places_dataset(args, batch_size=256):
+    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                     std=[0.229, 0.224, 0.225])
+
+    transform = transforms.Compose([
+        transforms.Resize(256),
+        transforms.CenterCrop(224),
+        transforms.ToTensor(),
+        normalize,
+    ])
+
+    data_path = args.images_dir + '/' + args.dataset
+
+    trainset = datasets.Places365(root=data_path, split='train-standard', small=True, download=True, transform=transform)
+    train_loader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=8)
+
+    valset = datasets.Places365(root=data_path, split='val', small=True, download=True, transform=transform)
+    val_loader = torch.utils.data.DataLoader(valset, batch_size=batch_size, shuffle=False, num_workers=8)
+
+    return train_loader, val_loader
+
+def load_mnist_dataset(args, batch_size=256):
+    transform = transforms.Compose([
+        transforms.Resize(28),
+        transforms.ToTensor(),
+    ])
+
+    data_path = args.images_dir + '/' + args.dataset
+
+    trainset = datasets.MNIST(root=data_path, train=True, download=True, transform=transform)
+    train_loader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=8)
+
+    valset = datasets.MNIST(root=data_path, train=False, download=True, transform=transform)
+    val_loader = torch.utils.data.DataLoader(valset, batch_size=batch_size, shuffle=False, num_workers=8)
+
+    return train_loader, val_loader
+    
+    
 def load_cifar_dataset(args, batch_size=256):
     dataset_stats = {
         'CIFAR10' : {'mean': (0.49139967861519607, 0.48215840839460783, 0.44653091444546567),

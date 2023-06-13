@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 
-DATASET=CIFAR100
+DATASET=places
 CACHE_PATH=features
 DATASET_PATH=data
 POOL='avg'
 BATCH_SIZE=1024
 DATA_ORDER=class_iid
-NUM_CLASSES=100
-CLASS_INCRE=10
+NUM_CLASSES=365
+CLASS_INCRE=73
 IN_MEMORY=0
 NUM_WORKERS=16
 PERMUTATION_SEED=0
@@ -31,6 +31,7 @@ for MODEL in mobilenet_v3_small mobilenet_v3_large efficientnet_b0 efficientnet_
       --arch ${MODEL} \
       --cl_model ${CL_MODEL} \
       --dataset ${DATASET} \
+      --batch_size ${BATCH_SIZE} \
       --num_classes ${NUM_CLASSES} \
       --class_increment ${CLASS_INCRE} \
       --h5_features_dir ${CACHE} \

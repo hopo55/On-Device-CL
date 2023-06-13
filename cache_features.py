@@ -6,17 +6,19 @@ import json
 
 import torch
 
-from dataset_utils import load_torchvision_full_image_dataset, load_places_lt_full_image_dataset, load_cifar_dataset
+from dataset_utils import *
 from utils import get_backbone, makedirs
 
 
 def get_data_loaders(args):
-    if args.dataset in ['imagenet', 'places']:
-        traindir = os.path.join(args.images_dir, 'train')
-        valdir = os.path.join(args.images_dir, 'val')
-        train_loader, val_loader = load_torchvision_full_image_dataset(traindir, valdir, batch_size=args.batch_size,
-                                                                       test_batch_size=args.batch_size,
-                                                                       num_workers=args.num_workers, shuffle=False)
+    # if args.dataset in ['imagenet', 'places']:
+    #     traindir = os.path.join(args.images_dir, 'train')
+    #     valdir = os.path.join(args.images_dir, 'val')
+    #     train_loader, val_loader = load_torchvision_full_image_dataset(traindir, valdir, batch_size=args.batch_size,
+    #                                                                    test_batch_size=args.batch_size,
+    #                                                                    num_workers=args.num_workers, shuffle=False)
+    if args.dataset in 'places':
+        train_loader, val_loader = load_places_dataset(args, batch_size=args.batch_size)
     elif args.dataset == 'places_lt':
         train_loader, val_loader = load_places_lt_full_image_dataset(args.images_dir, args.lt_txt_file,
                                                                      batch_size=args.batch_size,
@@ -24,6 +26,8 @@ def get_data_loaders(args):
                                                                      num_workers=args.num_workers, shuffle=False)
     elif args.dataset == 'CIFAR10' or args.dataset == 'CIFAR100':
         train_loader, val_loader = load_cifar_dataset(args, batch_size=args.batch_size)
+    elif args.dataset == 'MNIST':
+        train_loader, val_loader = load_mnist_dataset(args, batch_size=args.batch_size)
     else:
         raise NotImplementedError
     return train_loader, val_loader
@@ -49,6 +53,9 @@ def make_h5_feature_file(dataset, model, loader, h5_file_full_path, data_type, f
         num_val = 36500
     elif dataset == 'CIFAR10' or dataset == 'CIFAR100':
         num_train = 50000
+        num_val = 10000
+    elif dataset == 'MNIST':
+        num_train = 60000
         num_val = 10000
     else:
         raise NotImplementedError
