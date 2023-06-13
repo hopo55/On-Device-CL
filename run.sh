@@ -1,22 +1,24 @@
 #!/usr/bin/env bash
 
-DATASET=places
+# Dataset List = ['MNIST', 'CIFAR10', 'CIFAR100']
+# Update Dataset List = ['places', 'imagenet', 'places_lt']
+DATASET=CIFAR10
 CACHE_PATH=features
 DATASET_PATH=data
 POOL='avg'
-BATCH_SIZE=1024
+BATCH_SIZE=128
 DATA_ORDER=class_iid
-NUM_CLASSES=365
-CLASS_INCRE=73
+NUM_CLASSES=10
+CLASS_INCRE=1
 IN_MEMORY=0
-NUM_WORKERS=16
+NUM_WORKERS=0
 PERMUTATION_SEED=0
 SAVE_DIR=results/
 
 for MODEL in mobilenet_v3_small mobilenet_v3_large efficientnet_b0 efficientnet_b1 resnet18; do
   CACHE=${CACHE_PATH}/${DATASET}/${MODEL}_${POOL}
 
-  python -u cache_features.py \
+  python3 -u cache_features.py \
     --arch ${MODEL} \
     --dataset ${DATASET} \
     --cache_h5_dir ${CACHE} \
@@ -27,7 +29,7 @@ for MODEL in mobilenet_v3_small mobilenet_v3_large efficientnet_b0 efficientnet_
   for CL_MODEL in ncm nb slda replay fine_tune ovr perceptron; do
     EXPT_NAME=${DATASET}/${CL_MODEL}/${MODEL}_${POOL}_${DATA_ORDER}
 
-    python -u main.py \
+    python3 -u main.py \
       --arch ${MODEL} \
       --cl_model ${CL_MODEL} \
       --dataset ${DATASET} \
