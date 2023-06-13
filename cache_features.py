@@ -113,7 +113,7 @@ if __name__ == '__main__':
     parser.add_argument('--arch', type=str, choices=['resnet18', 'mobilenet_v3_small', 'mobilenet_v3_large', 'efficientnet_b0', 'efficientnet_b1'])
     parser.add_argument('--batch_size', type=int, default=512)
     parser.add_argument('--pooling_type', type=str, default='avg', choices=['avg', 'max'])
-    parser.add_argument('--num_workers', type=int, default=8)
+    parser.add_argument('--num_workers', type=int, default=4)
     parser.add_argument('--device', type=str, default='cuda')
 
     args = parser.parse_args()

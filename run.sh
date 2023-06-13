@@ -6,12 +6,12 @@ DATASET=CIFAR10
 CACHE_PATH=features
 DATASET_PATH=data
 POOL='avg'
-BATCH_SIZE=128
+BATCH_SIZE=1
 DATA_ORDER=class_iid
 NUM_CLASSES=10
 CLASS_INCRE=1
 IN_MEMORY=0
-NUM_WORKERS=0
+NUM_WORKERS=4
 PERMUTATION_SEED=0
 SAVE_DIR=results/
 
@@ -24,6 +24,7 @@ for MODEL in mobilenet_v3_small mobilenet_v3_large efficientnet_b0 efficientnet_
     --cache_h5_dir ${CACHE} \
     --images_dir ${DATASET_PATH} \
     --pooling_type ${POOL} \
+    --num_workers ${NUM_WORKERS} \
     --batch_size ${BATCH_SIZE}
 
   for CL_MODEL in ncm nb slda replay fine_tune ovr perceptron; do
