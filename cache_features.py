@@ -110,7 +110,8 @@ if __name__ == '__main__':
     parser.add_argument('--lt_txt_file', type=str, default='/media/tyler/Data/datasets/Places-LT/Places_LT_%s.txt')
 
     # other parameters
-    parser.add_argument('--arch', type=str, choices=['resnet18', 'mobilenet_v3_small', 'mobilenet_v3_large', 'efficientnet_b0', 'efficientnet_b1'])
+    # (Jetson) torch 1.8 does not support 'efficientnet_b0', 'efficientnet_b1'
+    parser.add_argument('--arch', type=str, choices=['resnet18', 'mobilenet_v3_small', 'mobilenet_v3_large'])
     parser.add_argument('--batch_size', type=int, default=512)
     parser.add_argument('--pooling_type', type=str, default='avg', choices=['avg', 'max'])
     parser.add_argument('--num_workers', type=int, default=4)

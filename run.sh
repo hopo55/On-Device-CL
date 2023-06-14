@@ -15,7 +15,8 @@ NUM_WORKERS=4
 PERMUTATION_SEED=0
 SAVE_DIR=results/
 
-for MODEL in mobilenet_v3_small mobilenet_v3_large efficientnet_b0 efficientnet_b1 resnet18; do
+# (Jetson) torch 1.8 does not support 'efficientnet_b0', 'efficientnet_b1'
+for MODEL in resnet18 mobilenet_v3_small mobilenet_v3_large; do
   CACHE=${CACHE_PATH}/${DATASET}/${MODEL}_${POOL}
 
   python3 -u cache_features.py \
