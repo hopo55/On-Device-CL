@@ -3,6 +3,8 @@ import json
 import logging
 import os
 import numpy as np
+from pathlib import Path
+from typing import Union
 
 import torch
 from torch import nn as nn
@@ -150,7 +152,6 @@ def accuracy(output, target, topk=(1,), output_has_class_ids=False):
         res = []
         for k in topk:
             correct_k = correct[:k].contiguous().view(-1).float().sum(0, keepdim=True)
-            print(batch_size)
             res.append(correct_k.mul_(100.0 / batch_size))
         return res
 
@@ -252,12 +253,46 @@ def bool_flag(s):
     msg = 'Invalid value "%s" for bool flag (should be 0/1 or True/False or true/false)'
     raise ValueError(msg % s)
 
+def _is_aws_or_gcloud_path(tb_log_dir: str) -> bool:
+    return tb_log_dir.startswith("gs://") or tb_log_dir.startswith("s3://")
+
+def _make_path_if_local(tb_log_dir: Union[str, Path]) -> Union[str, Path]:
+    if isinstance(tb_log_dir, str) and _is_aws_or_gcloud_path(tb_log_dir):
+        return tb_log_dir
+
+    tb_log_dir = Path(tb_log_dir)
+    tb_log_dir.mkdir(parents=True, exist_ok=True)
+    return tb_log_dir
+
+class Logger():
+    def __init__(self, path):
+        self.path = path
+        tb_log_dir = _make_path_if_local(self.path)
+        self.logger = SummaryWriter(tb_log_dir)
+
+    def result(self, title, log_data, n_iter):
+        self.logger.add_scalar(title, log_data, n_iter)
+
+    def config(self, config, metric_dict):
+        config = vars(config)
+        self.logger.add_hparams(config, metric_dict, run_name=None)
+
 
 def compute_size(model):
     from torchsummary import summary
+    device = 'cuda'
     model = model.to(device)
     summary(model, (3, 224, 224))
 
+    """ How to obtain the parameters of the output layer
+        :Perceptron = feature x number of classes
+        :Fine-Tune = feature x number of classes
+        :Naive Bayes = feature x number of classes x 3(muK, muK2 varK)
+        :SOvR = feature x number of classes
+        :NCM = feature x number of classes
+        :Replay = feature x number of classes x (samples per class + 1) why + 1???
+        :SLDA = (feature x number of classes) + (feature x feature)
+    """
 
 if __name__ == '__main__':
     device = 'cuda'

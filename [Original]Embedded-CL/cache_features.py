@@ -6,28 +6,22 @@ import json
 
 import torch
 
-from dataset_utils import *
+from dataset_utils import load_torchvision_full_image_dataset, load_places_lt_full_image_dataset
 from utils import get_backbone, makedirs
 
 
 def get_data_loaders(args):
-    # if args.dataset in ['imagenet', 'places']:
-    #     traindir = os.path.join(args.images_dir, 'train')
-    #     valdir = os.path.join(args.images_dir, 'val')
-    #     train_loader, val_loader = load_torchvision_full_image_dataset(traindir, valdir, batch_size=args.batch_size,
-    #                                                                    test_batch_size=args.batch_size,
-    #                                                                    num_workers=args.num_workers, shuffle=False)
-    if args.dataset in 'places':
-        train_loader, val_loader = load_places_dataset(args, batch_size=args.batch_size)
+    if args.dataset in ['imagenet', 'places']:
+        traindir = os.path.join(args.images_dir, 'train')
+        valdir = os.path.join(args.images_dir, 'val')
+        train_loader, val_loader = load_torchvision_full_image_dataset(traindir, valdir, batch_size=args.batch_size,
+                                                                       test_batch_size=args.batch_size,
+                                                                       num_workers=args.num_workers, shuffle=False)
     elif args.dataset == 'places_lt':
         train_loader, val_loader = load_places_lt_full_image_dataset(args.images_dir, args.lt_txt_file,
                                                                      batch_size=args.batch_size,
                                                                      test_batch_size=args.batch_size,
                                                                      num_workers=args.num_workers, shuffle=False)
-    elif args.dataset == 'CIFAR10' or args.dataset == 'CIFAR100':
-        train_loader, val_loader = load_cifar_dataset(args, batch_size=args.batch_size)
-    elif args.dataset == 'MNIST':
-        train_loader, val_loader = load_mnist_dataset(args, batch_size=args.batch_size)
     else:
         raise NotImplementedError
     return train_loader, val_loader
@@ -51,12 +45,6 @@ def make_h5_feature_file(dataset, model, loader, h5_file_full_path, data_type, f
     elif dataset == 'places_lt':
         num_train = 62500
         num_val = 36500
-    elif dataset == 'CIFAR10' or dataset == 'CIFAR100':
-        num_train = 50000
-        num_val = 10000
-    elif dataset == 'MNIST':
-        num_train = 60000
-        num_val = 10000
     else:
         raise NotImplementedError
 
@@ -90,35 +78,38 @@ def make_h5_feature_file(dataset, model, loader, h5_file_full_path, data_type, f
 
 
 def cache_features(args):
-    print('\nmodel : ', args.arch)
     train_loader, val_loader = get_data_loaders(args)
     backbone, feature_size = get_backbone(args.arch, args.pooling_type)
 
     print('\ncaching val features...')
-    make_h5_feature_file(args.dataset, backbone, val_loader, os.path.join(args.cache_h5_dir, 'val_features.h5'), 'val', feature_size, args.device)
+    make_h5_feature_file(args.dataset, backbone, val_loader, os.path.join(args.cache_h5_dir, 'val_features.h5'), 'val',
+                         feature_size, args.device)
     print('\ncaching train features...')
-    make_h5_feature_file(args.dataset, backbone, train_loader, os.path.join(args.cache_h5_dir, 'train_features.h5'), 'train', feature_size, args.device)
+    make_h5_feature_file(args.dataset, backbone, train_loader, os.path.join(args.cache_h5_dir, 'train_features.h5'),
+                         'train', feature_size, args.device)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     # directory parameters
-    parser.add_argument('--dataset', type=str, default='CIFAR10', choices=['MNIST', 'CIFAR10', 'CIFAR100', 'places', 'imagenet', 'places_lt'])
-    parser.add_argument('--images_dir', type=str)  # path to images (folder with 'train' and 'val' for data)
-    parser.add_argument('--cache_h5_dir', type=str, default=None)
-    parser.add_argument('--lt_txt_file', type=str, default='/media/tyler/Data/datasets/Places-LT/Places_LT_%s.txt')
+    parser.add_argument('--dataset', type=str, default='places_lt', choices=['places', 'imagenet', 'places_lt'])
+    parser.add_argument('--images_dir', type=str, default='datasets/Places-365/places365_standard')  # path to images (folder with 'train' and 'val' for data)
+    parser.add_argument('--cache_h5_dir', type=str, default='features/places_lt/supervised_resnet18_places_lt_avg')
+    parser.add_argument('--lt_txt_file', type=str,
+                        default='datasets/Places-LT/Places_LT_%s.txt')
 
     # other parameters
-    # (Jetson) torch 1.8 does not support 'efficientnet_b0', 'efficientnet_b1'
-    parser.add_argument('--arch', type=str, choices=['resnet18', 'mobilenet_v3_small', 'mobilenet_v3_large'])
-    parser.add_argument('--batch_size', type=int, default=512)
+    parser.add_argument('--arch', type=str, default='resnet18',
+                        choices=['resnet18', 'mobilenet_v3_small', 'mobilenet_v3_large', 'efficientnet_b0',
+                                 'efficientnet_b1'])
+    parser.add_argument('--batch_size', type=int, default=1024)
     parser.add_argument('--pooling_type', type=str, default='avg', choices=['avg', 'max'])
-    parser.add_argument('--num_workers', type=int, default=4)
+    parser.add_argument('--num_workers', type=int, default=16)
     parser.add_argument('--device', type=str, default='cuda')
 
     args = parser.parse_args()
-    # print("Arguments {}".format(json.dumps(vars(args), indent=4, sort_keys=True)))
+    print("Arguments {}".format(json.dumps(vars(args), indent=4, sort_keys=True)))
 
     # if not os.path.exists(args.cache_h5_dir):
     #     os.mkdir(args.cache_h5_dir)
