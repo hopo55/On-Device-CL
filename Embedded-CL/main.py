@@ -19,7 +19,7 @@ from models.CBCL import CBCL
 
 def get_class_data_loader(args, class_remap, training, min_class, max_class, batch_size=128, shuffle=False,
                           dataset='places', return_item_ix=False):
-    if dataset == 'CIFAR10' or dataset == 'CIFAR100' or dataset == 'CUB200':
+    if dataset == 'CIFAR10' or dataset == 'CIFAR100' or dataset == 'CUB200' or dataset == 'TinyImageNet':
         
         h5_file_path = os.path.join(args.h5_features_dir, '%s_features.h5')
         if training:
