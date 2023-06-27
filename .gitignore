@@ -8,6 +8,7 @@ data
 datasets
 features
 results
+log*
 
 # zip file
 *.zip
