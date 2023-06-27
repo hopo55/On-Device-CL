@@ -8,125 +8,74 @@ from torch.utils.data import DataLoader, Dataset
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 
+from avalanche.benchmarks.datasets import CUB200, TinyImagenet
 
-def load_torchvision_full_image_dataset(traindir, valdir, batch_size=256, test_batch_size=256, shuffle=False, num_workers=8):
-    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                     std=[0.229, 0.224, 0.225])
 
-    transform = transforms.Compose([
-        transforms.Resize(256),
-        transforms.CenterCrop(224),
-        transforms.ToTensor(),
-        normalize,
-    ])
-
-    train_dataset = datasets.ImageFolder(traindir, transform)
-    train_loader = DataLoader(
-        train_dataset,
-        batch_size=batch_size, shuffle=shuffle,
-        num_workers=num_workers, pin_memory=True,
+def load_cub_dataset(args, batch_size=256):
+    img_size = args.img_size
+    train_transform = transforms.Compose(
+        [
+            transforms.Resize((img_size, img_size)),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            transforms.Normalize(
+                (0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)
+            ),
+        ]
     )
 
-    val_loader = torch.utils.data.DataLoader(
-        datasets.ImageFolder(valdir, transform),
-        batch_size=test_batch_size, shuffle=False,
-        num_workers=num_workers, pin_memory=True,
+    eval_transform = transforms.Compose(
+        [
+            transforms.Resize((img_size, img_size)),
+            transforms.ToTensor(),
+            transforms.Normalize(
+                (0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)
+            ),
+        ]
     )
-    return train_loader, val_loader
-
-
-class LT_Dataset(Dataset):
-
-    def __init__(self, root, txt, transform=None, return_item_ix=False):
-        self.samples = []
-        self.targets = []
-        self.transform = transform
-        self.return_item_ix = return_item_ix
-        with open(txt) as f:
-            for line in f:
-                self.samples.append(os.path.join(root, line.split()[0]))
-                self.targets.append(int(line.split()[1]))
-
-    def __len__(self):
-        return len(self.targets)
-
-    def __getitem__(self, index):
-
-        path = self.samples[index]
-        label = self.targets[index]
-
-        with open(path, 'rb') as f:
-            sample = Image.open(f).convert('RGB')
-
-        if self.transform is not None:
-            sample = self.transform(sample)
-
-        if self.return_item_ix:
-            return sample, label, index
-        else:
-            return sample, label
-
-
-def load_places_lt_full_image_dataset(image_dir, txt_file_root, batch_size=256, test_batch_size=256, num_workers=8,
-                                      return_item_ix=False, shuffle=False):
-    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                     std=[0.229, 0.224, 0.225])
-
-    transform = transforms.Compose([
-        transforms.Resize(256),
-        transforms.CenterCrop(224),
-        transforms.ToTensor(),
-        normalize,
-    ])
-
-    train_dataset = LT_Dataset(image_dir, txt_file_root % 'train', transform=transform, return_item_ix=return_item_ix)
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, num_workers=num_workers,
-                                               pin_memory=True, shuffle=shuffle)
-
-    val_dataset = LT_Dataset(image_dir, txt_file_root % 'test', transform=transform, return_item_ix=return_item_ix)
-    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=test_batch_size, num_workers=num_workers,
-                                             pin_memory=True, shuffle=False)
-
-    return train_loader, val_loader
-
-
-def load_places_dataset(args, batch_size=256):
-    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                     std=[0.229, 0.224, 0.225])
-
-    transform = transforms.Compose([
-        transforms.Resize(256),
-        transforms.CenterCrop(224),
-        transforms.ToTensor(),
-        normalize,
-    ])
 
     data_path = args.images_dir + '/' + args.dataset
 
-    trainset = datasets.Places365(root=data_path, split='train-standard', small=True, download=True, transform=transform)
+    trainset = CUB200(root=data_path, train=True, download=True, transform=train_transform)
     train_loader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=8)
 
-    valset = datasets.Places365(root=data_path, split='val', small=True, download=True, transform=transform)
+    valset = CUB200(root=data_path, train=False, download=True, transform=eval_transform)
     val_loader = torch.utils.data.DataLoader(valset, batch_size=batch_size, shuffle=False, num_workers=8)
 
     return train_loader, val_loader
 
-def load_mnist_dataset(args, batch_size=256):
-    transform = transforms.Compose([
-        transforms.Resize(28),
-        transforms.ToTensor(),
-    ])
+def load_tiny_imagenet_dataset(args, batch_size=256):
+    img_size = args.img_size
+    train_transform = transforms.Compose(
+        [
+            transforms.Resize((img_size, img_size)),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            transforms.Normalize(
+                (0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)
+            ),
+        ]
+    )
+
+    eval_transform = transforms.Compose(
+        [
+            transforms.Resize((img_size, img_size)),
+            transforms.ToTensor(),
+            transforms.Normalize(
+                (0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)
+            ),
+        ]
+    )
 
     data_path = args.images_dir + '/' + args.dataset
 
-    trainset = datasets.MNIST(root=data_path, train=True, download=True, transform=transform)
+    trainset = TinyImagenet(root=data_path, train=True, download=True, transform=train_transform)
     train_loader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=8)
 
-    valset = datasets.MNIST(root=data_path, train=False, download=True, transform=transform)
+    valset = TinyImagenet(root=data_path, train=False, download=True, transform=eval_transform)
     val_loader = torch.utils.data.DataLoader(valset, batch_size=batch_size, shuffle=False, num_workers=8)
 
     return train_loader, val_loader
-    
     
 def load_cifar_dataset(args, batch_size=256):
     dataset_stats = {
@@ -165,7 +114,6 @@ def load_cifar_dataset(args, batch_size=256):
         val_loader = torch.utils.data.DataLoader(valset, batch_size=batch_size, shuffle=False, num_workers=args.num_workers)
 
     return train_loader, val_loader
-
 
 class FeaturesDatasetInMemory(Dataset):
     def __init__(self, h5_file_path, return_item_ix=False):

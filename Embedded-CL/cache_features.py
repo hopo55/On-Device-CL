@@ -11,23 +11,12 @@ from utils import get_backbone, makedirs
 
 
 def get_data_loaders(args):
-    # if args.dataset in ['imagenet', 'places']:
-    #     traindir = os.path.join(args.images_dir, 'train')
-    #     valdir = os.path.join(args.images_dir, 'val')
-    #     train_loader, val_loader = load_torchvision_full_image_dataset(traindir, valdir, batch_size=args.batch_size,
-    #                                                                    test_batch_size=args.batch_size,
-    #                                                                    num_workers=args.num_workers, shuffle=False)
-    if args.dataset in 'places':
-        train_loader, val_loader = load_places_dataset(args, batch_size=args.batch_size)
-    elif args.dataset == 'places_lt':
-        train_loader, val_loader = load_places_lt_full_image_dataset(args.images_dir, args.lt_txt_file,
-                                                                     batch_size=args.batch_size,
-                                                                     test_batch_size=args.batch_size,
-                                                                     num_workers=args.num_workers, shuffle=False)
-    elif args.dataset == 'CIFAR10' or args.dataset == 'CIFAR100':
+    if args.dataset == 'CIFAR10' or args.dataset == 'CIFAR100':
         train_loader, val_loader = load_cifar_dataset(args, batch_size=args.batch_size)
-    elif args.dataset == 'MNIST':
-        train_loader, val_loader = load_mnist_dataset(args, batch_size=args.batch_size)
+    elif args.dataset == 'CUB200':
+        train_loader, val_loader = load_cub_dataset(args, batch_size=args.batch_size)
+    elif args.dataset == 'TinyImageNet':
+        train_loader, val_loader = load_tiny_imagenet_dataset(args, batch_size=args.batch_size)
     else:
         raise NotImplementedError
     return train_loader, val_loader
@@ -42,21 +31,15 @@ def make_h5_feature_file(dataset, model, loader, h5_file_full_path, data_type, f
     h5_file = h5py.File(h5_file_full_path, 'w')
 
     # preset array sizes
-    if dataset == 'imagenet':
-        num_train = 1281167
-        num_val = 50000
-    elif dataset == 'places':
-        num_train = 1803460
-        num_val = 36500
-    elif dataset == 'places_lt':
-        num_train = 62500
-        num_val = 36500
+    if dataset == 'TinyImageNet':
+        num_train = 100000
+        num_val = 10000
     elif dataset == 'CIFAR10' or dataset == 'CIFAR100':
         num_train = 50000
         num_val = 10000
-    elif dataset == 'MNIST':
-        num_train = 60000
-        num_val = 10000
+    elif dataset == 'CUB200':
+        num_train = 5994
+        num_val = 5794
     else:
         raise NotImplementedError
 
@@ -64,8 +47,8 @@ def make_h5_feature_file(dataset, model, loader, h5_file_full_path, data_type, f
         h5_file.create_dataset("features", shape=(num_train, feature_size), dtype=np.float32)
         h5_file.create_dataset("labels", shape=(num_train,), dtype=np.int64)
     elif data_type == 'val':
-        h5_file.create_dataset("features", (num_val, feature_size), dtype=np.float32)
-        h5_file.create_dataset("labels", (num_val,), dtype=np.int64)
+        h5_file.create_dataset("features", shape=(num_val, feature_size), dtype=np.float32)
+        h5_file.create_dataset("labels", shape=(num_val,), dtype=np.int64)
     else:
         raise NotImplementedError
 
@@ -90,6 +73,9 @@ def make_h5_feature_file(dataset, model, loader, h5_file_full_path, data_type, f
 
 
 def cache_features(args):
+    args.device = 'cuda:' + args.device
+    args.device = torch.device(args.device)
+
     print('\nmodel : ', args.arch)
     train_loader, val_loader = get_data_loaders(args)
     backbone, feature_size = get_backbone(args.arch, args.pooling_type)
@@ -104,7 +90,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     # directory parameters
-    parser.add_argument('--dataset', type=str, default='CIFAR10', choices=['MNIST', 'CIFAR10', 'CIFAR100', 'places', 'imagenet', 'places_lt'])
+    parser.add_argument('--dataset', type=str, default='CIFAR10', choices=['CIFAR10', 'CIFAR100', 'CUB200', 'TinyImageNet'])
     parser.add_argument('--images_dir', type=str)  # path to images (folder with 'train' and 'val' for data)
     parser.add_argument('--cache_h5_dir', type=str, default=None)
     parser.add_argument('--lt_txt_file', type=str, default='/media/tyler/Data/datasets/Places-LT/Places_LT_%s.txt')
@@ -115,7 +101,8 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', type=int, default=512)
     parser.add_argument('--pooling_type', type=str, default='avg', choices=['avg', 'max'])
     parser.add_argument('--num_workers', type=int, default=4)
-    parser.add_argument('--device', type=str, default='cuda')
+    parser.add_argument('--device', type=str, default='0') 
+    parser.add_argument('--img_size', type=int, default=32)
 
     args = parser.parse_args()
     # print("Arguments {}".format(json.dumps(vars(args), indent=4, sort_keys=True)))

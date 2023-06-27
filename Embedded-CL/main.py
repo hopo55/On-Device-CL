@@ -19,8 +19,7 @@ from models.CBCL import CBCL
 
 def get_class_data_loader(args, class_remap, training, min_class, max_class, batch_size=128, shuffle=False,
                           dataset='places', return_item_ix=False):
-    if dataset == 'places' or dataset == 'imagenet' or dataset == 'places_lt' \
-        or dataset == 'CIFAR10' or dataset == 'CIFAR100':
+    if dataset == 'CIFAR10' or dataset == 'CIFAR100' or dataset == 'CUB200':
         
         h5_file_path = os.path.join(args.h5_features_dir, '%s_features.h5')
         if training:
@@ -121,9 +120,9 @@ def streaming_class_iid_training(args, classifier, class_remap):
     # accuracies['seen_classes_top5'].append(float(top5))
 
     # save accuracies, predictions, and model out
-    save_accuracies(accuracies, min_class_trained=0, max_class_trained=args.num_classes, save_path=args.save_dir)
-    save_predictions(probas, 0, args.num_classes, args.save_dir)
-    classifier.save_model(args.save_dir, "model_weights_final")
+    # save_accuracies(accuracies, min_class_trained=0, max_class_trained=args.num_classes, save_path=args.save_dir)
+    # save_predictions(probas, 0, args.num_classes, args.save_dir)
+    # classifier.save_model(args.save_dir, "model_weights_final")
 
     end_time = time.time()
     total_time = end_time - start_time
@@ -165,9 +164,9 @@ def streaming_iid_training(args, classifier):
     accuracies['top5'].append(float(top5))
 
     # save accuracies, predictions, and model out
-    save_accuracies(accuracies, min_class_trained=0, max_class_trained=args.num_classes, save_path=args.save_dir)
-    save_predictions(probas, 0, args.num_classes, args.save_dir)
-    classifier.save_model(args.save_dir, "model_weights_final")
+    # save_accuracies(accuracies, min_class_trained=0, max_class_trained=args.num_classes, save_path=args.save_dir)
+    # save_predictions(probas, 0, args.num_classes, args.save_dir)
+    # classifier.save_model(args.save_dir, "model_weights_final")
 
     end_time = time.time()
     print('\nModel Updates: ', classifier.num_updates)
@@ -205,7 +204,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     # directory parameters
-    parser.add_argument('--dataset', type=str, default='CIFAR10', choices=['MNIST', 'CIFAR10', 'CIFAR100', 'places', 'imagenet', 'places_lt'])
+    parser.add_argument('--dataset', type=str, default='CIFAR10', choices=['CIFAR10', 'CIFAR100', 'CUB200', 'TinyImageNet'])
     parser.add_argument('--h5_features_dir', type=str, default=None)
     parser.add_argument('--save_dir', type=str, default=None)
     parser.add_argument('--expt_name', type=str)

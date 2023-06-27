@@ -1,37 +1,39 @@
-#!/usr/bin/env bash
 
-# Dataset List = ['MNIST', 'CIFAR10', 'CIFAR100']
-# Update Dataset List = ['places', 'imagenet', 'places_lt']
-DATASET=CIFAR10
+# Dataset List = ['CIFAR10', 'CIFAR100', 'CUB200', 'TinyImageNet'] # TinyImageNet(200)
+DATASET=TinyImageNet
 CACHE_PATH=features
 DATASET_PATH=data
 POOL='avg'
 BATCH_SIZE=512
 DATA_ORDER=class_iid
-NUM_CLASSES=10
-CLASS_INCRE=1
+NUM_CLASSES=200
+CLASS_INCRE=20
 IN_MEMORY=0
 NUM_WORKERS=8
 PERMUTATION_SEED=0
 SAVE_DIR=results/
+DEVICE='2'
+IMG_SIZE=64
 
 # (Jetson) torch 1.8 does not support 'efficientnet_b0', 'efficientnet_b1'
 MODEL=resnet18
-CACHE=${CACHE_PATH}/${DATASET}/${MODEL}_${POOL}
+CACHE=${CACHE_PATH}/${DATASET}/${MODEL}_${POOL}/${IMG_SIZE}
 
-python -u cache_features.py \
+python -u Embedded-CL/cache_features.py \
   --arch ${MODEL} \
   --dataset ${DATASET} \
   --cache_h5_dir ${CACHE} \
   --images_dir ${DATASET_PATH} \
   --pooling_type ${POOL} \
   --num_workers ${NUM_WORKERS} \
-  --batch_size ${BATCH_SIZE}
+  --batch_size ${BATCH_SIZE} \
+  --device ${DEVICE} \
+  --img_size ${IMG_SIZE}
 
 CL_MODEL=ncm
 EXPT_NAME=${DATASET}/${CL_MODEL}/${MODEL}_${POOL}_${DATA_ORDER}
 
-python -u main.py \
+python -u Embedded-CL/main.py \
   --arch ${MODEL} \
   --cl_model ${CL_MODEL} \
   --dataset ${DATASET} \
@@ -44,4 +46,5 @@ python -u main.py \
   --data_ordering ${DATA_ORDER} \
   --dataset_in_memory ${IN_MEMORY} \
   --num_workers ${NUM_WORKERS} \
-  --permutation_seed ${PERMUTATION_SEED}
+  --permutation_seed ${PERMUTATION_SEED} \
+  --device ${DEVICE}
