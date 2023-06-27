@@ -1,9 +1,13 @@
 import argparse
 import time
 import random
+import datetime as dt
+import os
+import torch
+import numpy as np
 
 from dataset_utils import make_incremental_features_dataloader, make_features_dataloader, remap_classes
-from utils import *
+from utils import Tensor_Logger, accuracy, save_accuracies, save_predictions, bool_flag, makedirs, get_feature_size
 from models.StreamingSoftmaxReplay import StreamingSoftmax
 from models.StreamingLDA import StreamingLDA
 from models.NCM import NearestClassMean
@@ -83,7 +87,9 @@ def update_accuracies(class_remap, curr_max_class, classifier, accuracies, save_
 
 def streaming_class_iid_training(args, classifier, class_remap):
     start_time = time.time()
-    logger = Logger(args.save_dir)
+    date = dt.datetime.now()
+    date = date.strftime("%Y_%m_%d_%H_%M_%S")
+    logger = Tensor_Logger(args.save_dir + "/" + date)
     # start list of accuracies
     accuracies = {'seen_classes_top1': [], 'seen_classes_top5': []}
     # save_name = "model_weights_min_trained_0_max_trained_%d"
@@ -129,6 +135,7 @@ def streaming_class_iid_training(args, classifier, class_remap):
     logger.result('Total Time (seconds)', total_time, 1)
     metric_dict = {'metric': top1}
     logger.config(config=args, metric_dict=metric_dict)
+
 
 
 def streaming_iid_training(args, classifier):

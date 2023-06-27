@@ -168,40 +168,40 @@ class TFSubLogger:
         self.parent_logger.message(message, self.prefix + "/" + name)
 
 
-class Logger:
-    def add_scalar(self, name, value, iteration):
-        raise NotImplementedError
+# class Logger:
+#     def add_scalar(self, name, value, iteration):
+#         raise NotImplementedError
 
-    def add_scalars(self, name, value, iteration):
-        raise NotImplementedError
+#     def add_scalars(self, name, value, iteration):
+#         raise NotImplementedError
 
-    def close(self):
-        pass
+#     def close(self):
+#         pass
 
-    def get_logger(self, name):
-        raise NotImplementedError
+#     def get_logger(self, name):
+#         raise NotImplementedError
 
-    def message(self, message, name=""):
-        print("[" + name + "] " + message)
+#     def message(self, message, name=""):
+#         print("[" + name + "] " + message)
 
 
-class TFLogger(SummaryWriter, Logger):
-    def __init__(self, log_dir=None, verbose=False, **args):
-        SummaryWriter.__init__(self, log_dir=log_dir)
-        self.verbose = verbose
+# class TFLogger(SummaryWriter, Logger):
+#     def __init__(self, log_dir=None, verbose=False, **args):
+#         SummaryWriter.__init__(self, log_dir=log_dir)
+#         self.verbose = verbose
 
-    def add_scalar(self, name, value, iteration):
-        if self.verbose:
-            print("[LOG]: At " + str(iteration) + ": " + name + " = " + str(value))
-        SummaryWriter.add_scalar(self, name, value, iteration)
+#     def add_scalar(self, name, value, iteration):
+#         if self.verbose:
+#             print("[LOG]: At " + str(iteration) + ": " + name + " = " + str(value))
+#         SummaryWriter.add_scalar(self, name, value, iteration)
 
-    def add_scalars(self, name, value, iteration):
-        if self.verbose:
-            print("[LOG]: At " + str(iteration) + ": " + name + " = " + str(value))
-        SummaryWriter.add_scalars(self, name, value, iteration)
+#     def add_scalars(self, name, value, iteration):
+#         if self.verbose:
+#             print("[LOG]: At " + str(iteration) + ": " + name + " = " + str(value))
+#         SummaryWriter.add_scalars(self, name, value, iteration)
 
-    def get_logger(self, name):
-        return TFSubLogger(self, name)
+#     def get_logger(self, name):
+#         return TFSubLogger(self, name)
 
 
 def save_predictions(y_pred, min_class_trained, max_class_trained, save_path, suffix=''):
@@ -264,7 +264,7 @@ def _make_path_if_local(tb_log_dir: Union[str, Path]) -> Union[str, Path]:
     tb_log_dir.mkdir(parents=True, exist_ok=True)
     return tb_log_dir
 
-class Logger():
+class Tensor_Logger():
     def __init__(self, path):
         self.path = path
         tb_log_dir = _make_path_if_local(self.path)
