@@ -1,6 +1,6 @@
 
 # Dataset List = ['CIFAR10', 'CIFAR100', 'CUB200', 'TinyImageNet'] # TinyImageNet(200)
-DATASET=TinyImageNet
+DATASET=CUB200
 CACHE_PATH=features
 DATASET_PATH=data
 POOL='avg'
@@ -12,8 +12,8 @@ IN_MEMORY=0
 NUM_WORKERS=8
 PERMUTATION_SEED=0
 SAVE_DIR=results/
-DEVICE='2'
-IMG_SIZE=64
+DEVICE='0'
+IMG_SIZE=224
 
 # (Jetson) torch 1.8 does not support 'efficientnet_b0', 'efficientnet_b1'
 MODEL=resnet18
