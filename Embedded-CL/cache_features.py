@@ -38,8 +38,8 @@ def make_h5_feature_file(dataset, model, loader, h5_file_full_path, data_type, f
         num_train = 50000
         num_val = 10000
     elif dataset == 'CUB200':
-        num_train = 5994
-        num_val = 5794
+        num_train = 9430
+        num_val = 2358
     else:
         raise NotImplementedError
 

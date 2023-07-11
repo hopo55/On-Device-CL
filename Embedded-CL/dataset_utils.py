@@ -4,7 +4,7 @@ import h5py
 import numpy as np
 
 import torch.utils.data
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, ConcatDataset, random_split
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 
@@ -37,10 +37,15 @@ def load_cub_dataset(args, batch_size=256):
     data_path = args.images_dir + '/' + args.dataset
 
     trainset = CUB200(root=data_path, train=True, download=True, transform=train_transform)
-    print(type(trainset))
-    train_loader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=8)
-
     valset = CUB200(root=data_path, train=False, download=True, transform=eval_transform)
+
+    combined_dataset = ConcatDataset([trainset, valset])
+    total_size = len(combined_dataset)
+    train_size = int(0.8 * total_size)
+    val_size = total_size - train_size
+    trainset, valset = torch.utils.data.random_split(combined_dataset, [train_size, val_size])
+    
+    train_loader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=8)
     val_loader = torch.utils.data.DataLoader(valset, batch_size=batch_size, shuffle=False, num_workers=8)
 
     return train_loader, val_loader
@@ -275,3 +280,4 @@ if __name__ == '__main__':
     class_remap = remap_classes(365, 0)
     loader = make_incremental_features_dataloader(class_remap, h5_file_path, 0, 5, 256, num_workers=8, shuffle=False,
                                                   return_item_ix=False)
+    print()
