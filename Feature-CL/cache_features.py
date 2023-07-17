@@ -78,12 +78,15 @@ def cache_features(args):
 
     print('\nmodel : ', args.arch)
     train_loader, val_loader = get_data_loaders(args)
-    backbone, feature_size = get_backbone(args.arch, args.pooling_type)
+    backbone_list, feature_list = get_backbone(args.arch, args.pooling_type)
 
-    print('\ncaching val features...')
-    make_h5_feature_file(args.dataset, backbone, val_loader, os.path.join(args.cache_h5_dir, 'val_features.h5'), 'val', feature_size, args.device)
-    print('\ncaching train features...')
-    make_h5_feature_file(args.dataset, backbone, train_loader, os.path.join(args.cache_h5_dir, 'train_features.h5'), 'train', feature_size, args.device)
+    for arch_name, backbone, feature_size in zip(args.arch, backbone_list, feature_list):
+        folder_name = args.cache_h5_dir + arch_name + '_' + args.pooling_type
+        print('\n' + arch_name)
+        print('caching val features...')
+        make_h5_feature_file(args.dataset, backbone, val_loader, os.path.join(folder_name, 'val_features.h5'), 'val', feature_size, args.device)
+        print('caching train features...')
+        make_h5_feature_file(args.dataset, backbone, train_loader, os.path.join(folder_name, 'train_features.h5'), 'train', feature_size, args.device)
 
 
 if __name__ == '__main__':
@@ -95,19 +98,17 @@ if __name__ == '__main__':
     parser.add_argument('--cache_h5_dir', type=str, default=None)
 
     # other parameters
-    # (Jetson) torch 1.8 does not support 'efficientnet_b0', 'efficientnet_b1'
-    parser.add_argument('--arch', type=str, choices=['resnet18', 'mobilenet_v3_small', 'mobilenet_v3_large'])
+    parser.add_argument('--arch', nargs='+', type=str, default=['resnet18', 'mobilenet_v3_small'])
+    # , choices=['resnet18', 'mobilenet_v3_small', 'mobilenet_v3_large', 'efficientnet_b0', 'efficientnet_b1']
     parser.add_argument('--batch_size', type=int, default=512)
     parser.add_argument('--pooling_type', type=str, default='avg', choices=['avg', 'max'])
     parser.add_argument('--num_workers', type=int, default=4)
     parser.add_argument('--device', type=str, default='0') 
-    parser.add_argument('--img_size', type=int, default=32)
 
     args = parser.parse_args()
-    # print("Arguments {}".format(json.dumps(vars(args), indent=4, sort_keys=True)))
 
-    # if not os.path.exists(args.cache_h5_dir):
-    #     os.mkdir(args.cache_h5_dir)
-    makedirs(args.cache_h5_dir)
+    for arch_name in args.arch:
+        folder_name = args.cache_h5_dir + arch_name + '_' + args.pooling_type
+        makedirs(folder_name)
 
     cache_features(args)

@@ -3,21 +3,21 @@ import torch
 from torch import nn
 
 
-class NearestClassMean(nn.Module):
+class OneVsRest(nn.Module):
     """
-    This is an implementation of the Nearest Class Mean algorithm for streaming learning.
+    This is an implementation of the One vs Rest algorithm for streaming learning.
     """
 
     def __init__(self, input_shape, num_classes, backbone=None, device='cuda'):
         """
-        Init function for the NCM model.
+        Init function for the model.
         :param input_shape: feature dimension
         :param num_classes: number of total classes in stream
         """
 
-        super(NearestClassMean, self).__init__()
+        super(OneVsRest, self).__init__()
 
-        # NCM parameters
+        # parameters
         self.device = device
         self.input_shape = input_shape
         self.num_classes = num_classes
@@ -27,15 +27,18 @@ class NearestClassMean(nn.Module):
         if backbone is not None:
             self.backbone = backbone.eval().to(device)
 
-        # setup weights for NCM
+        # setup weights
         self.muK = torch.zeros((num_classes, input_shape)).to(self.device)
+        self.notmuK = torch.zeros((num_classes, input_shape)).to(self.device)
         self.cK = torch.zeros(num_classes).to(self.device)
+        self.notcK = torch.zeros(num_classes).to(self.device)
         self.num_updates = 0
+        self.prev_num_updates = 0
 
     @torch.no_grad()
-    def fit(self, x, y, item_ix):
+    def fit_old(self, x, y, item_ix):
         """
-        Fit the NCM model to a new sample (x,y).
+        Fit the model to a new sample (x,y).
         :param item_ix:
         :param x: a torch tensor of the input data (must be a vector)
         :param y: a torch tensor of the input label
@@ -50,26 +53,55 @@ class NearestClassMean(nn.Module):
         if len(y.shape) == 0:
             y = y.unsqueeze(0)
 
-        # update class means
-        self.muK[y, :] += (x - self.muK[y, :]) / (self.cK[y] + 1).unsqueeze(
-            1)
+        # update current class
+        self.muK[y, :] += (x - self.muK[y, :]) / (self.cK[y] + 1).unsqueeze(1)
         self.cK[y] += 1
+
+        # mask off weight matrix to only included classes
+        visited_ix = torch.where(self.cK > 0)[0]
+
+        # update background nodes for other visited classes
+        for c in visited_ix:
+            if c != y:
+                self.notmuK[c, :] += ((x - self.notmuK[c, :]) / (self.notcK[c] + 1)).squeeze()
+                self.notcK[c] += 1
+            else:
+                if self.notcK[c] == 0:
+                    # first time, initialize with means of other positive vectors
+                    ix = torch.where(visited_ix != y)[0]
+                    if len(ix) > 0:
+                        muK = self.muK[ix]
+                        cK = self.cK[ix]
+                        self.notmuK[c, :] = torch.mean(muK, dim=0)
+                        self.notcK[c] += torch.sum(cK)
+
+        # update counter
         self.num_updates += 1
 
     @torch.no_grad()
-    def find_dists(self, A, B):
+    def fit(self, x, y, item_ix):
         """
-        Given a matrix of points A, return the indices of the closest points in A to B using L2 distance.
-        :param A: N x d matrix of points
-        :param B: M x d matrix of points for predictions
-        :return: indices of closest points in A
+        Fit the model to a new sample (x,y).
+        :param item_ix:
+        :param x: a torch tensor of the input data (must be a vector)
+        :param y: a torch tensor of the input label
+        :return: None
         """
-        M, d = B.shape
-        with torch.no_grad():
-            B = torch.reshape(B, (M, 1, d))  # reshaping for broadcasting
-            square_sub = torch.mul(A - B, A - B)  # square all elements
-            dist = torch.sum(square_sub, dim=2)
-        return -dist
+        x = x.to(self.device)
+        y = y.long().to(self.device)
+
+        # make sure things are the right shape
+        if len(x.shape) < 2:
+            x = x.unsqueeze(0)
+        if len(y.shape) == 0:
+            y = y.unsqueeze(0)
+
+        # update current class
+        self.muK[y, :] += (x - self.muK[y, :]) / (self.cK[y] + 1).unsqueeze(1)
+        self.cK[y] += 1
+
+        # update counter
+        self.num_updates += 1
 
     @torch.no_grad()
     def predict(self, X, return_probas=False):
@@ -81,9 +113,26 @@ class NearestClassMean(nn.Module):
         """
         X = X.to(self.device)
 
-        scores = self.find_dists(self.muK, X)
+        # update background nodes for other visited classes
+        visited_ix = torch.where(self.cK > 0)[0]
+        if self.prev_num_updates != self.num_updates:
+            # there have been updates to the model
+            for c in visited_ix:
+                # first time, initialize with means of other positive vectors
+                ix = torch.where(visited_ix != c)[0]
+                muK = self.muK[visited_ix[ix]]
+                cK = self.cK[visited_ix[ix]]
+                self.notcK[c] = torch.sum(cK)
+                self.notmuK[c, :] = torch.sum(muK * torch.unsqueeze(cK, dim=1) / self.notcK[c], dim=0)
+            self.prev_num_updates = self.num_updates
 
-        # mask off predictions for unseen classes
+        scores = torch.zeros((len(X), self.num_classes))
+        for c in visited_ix:
+            y = torch.matmul(X, self.muK[c, :])
+            not_y = torch.matmul(X, self.notmuK[c, :])
+            score = y / (y + not_y)
+            scores[:, c] = score
+
         not_visited_ix = torch.where(self.cK == 0)[0]
         min_col = torch.min(scores, dim=1)[0].unsqueeze(0) - 1
         scores[:, not_visited_ix] = min_col.tile(len(not_visited_ix)).reshape(
@@ -122,7 +171,7 @@ class NearestClassMean(nn.Module):
 
     @torch.no_grad()
     def fit_batch(self, batch_x, batch_y, batch_ix):
-        # fit NCM one example at a time
+        # fit one example at a time
         for x, y in zip(batch_x, batch_y):
             self.fit(x.cpu(), y.view(1, ), None)
 
@@ -169,6 +218,8 @@ class NearestClassMean(nn.Module):
         d = dict()
         d['muK'] = self.muK.cpu()
         d['cK'] = self.cK.cpu()
+        d['notmuK'] = self.notmuK.cpu()
+        d['notcK'] = self.notcK.cpu()
         d['num_updates'] = self.num_updates
 
         # save model out
@@ -182,8 +233,8 @@ class NearestClassMean(nn.Module):
         :return:
         """
         # load parameters
-        print('\nloading ckpt from: %s' % save_file)
         d = torch.load(os.path.join(save_file))
+        print('\nloading ckpt from: %s' % save_file)
         self.muK = d['muK'].to(self.device)
         self.cK = d['cK'].to(self.device)
         self.num_updates = d['num_updates']

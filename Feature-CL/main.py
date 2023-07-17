@@ -1,10 +1,39 @@
+import argparse
 import time
 import random
-import argparse
+import datetime as dt
+import os
+import torch
+import numpy as np
 
-from utils import *
-from models.NCM import NearestClassMean
 from dataset_utils import make_incremental_features_dataloader, make_features_dataloader, remap_classes
+from utils import Tensor_Logger, accuracy, save_accuracies, save_predictions, bool_flag, makedirs, get_feature_size
+from models.StreamingSoftmaxReplay import StreamingSoftmax
+from models.StreamingLDA import StreamingLDA
+from models.NCM import NearestClassMean
+from models.NaiveBayes import NaiveBayes
+from models.OneVsRest import OneVsRest
+from models.Perceptron import Perceptron
+from models.CBCL import CBCL
+
+
+def get_class_data_loader(args, class_remap, training, min_class, max_class, batch_size=128, shuffle=False,
+                          dataset='places', return_item_ix=False):
+    if dataset == 'CIFAR10' or dataset == 'CIFAR100' or dataset == 'CUB200' or dataset == 'TinyImageNet':
+        
+        h5_file_path = os.path.join(args.h5_features_dir, '%s_features.h5')
+        if training:
+            data = 'train'
+            return_item_ix = return_item_ix
+        else:
+            data = 'val'
+            return_item_ix = False
+        return make_incremental_features_dataloader(class_remap, h5_file_path % data, min_class, max_class,
+                                                    batch_size=batch_size, shuffle=shuffle,
+                                                    return_item_ix=return_item_ix, num_workers=args.num_workers,
+                                                    in_memory=args.dataset_in_memory)
+    else:
+        raise NotImplementedError('Please implement another dataset.')
 
 
 def set_seed(seed):
@@ -33,32 +62,12 @@ def get_iid_data_loader(args, training, batch_size=128, shuffle=False, dataset='
         raise NotImplementedError('Please implement another dataset.')
 
 
-def get_class_data_loader(args, class_remap, training, min_class, max_class, batch_size=128, shuffle=False,
-                          dataset='places', return_item_ix=False):
-    if dataset == 'places' or dataset == 'imagenet' or dataset == 'places_lt' \
-        or dataset == 'CIFAR10' or dataset == 'CIFAR100':
-        
-        h5_file_path = os.path.join(args.h5_features_dir, '%s_features.h5')
-        if training:
-            data = 'train'
-            return_item_ix = return_item_ix
-        else:
-            data = 'val'
-            return_item_ix = False
-        return make_incremental_features_dataloader(class_remap, h5_file_path % data, min_class, max_class,
-                                                    batch_size=batch_size, shuffle=shuffle,
-                                                    return_item_ix=return_item_ix, num_workers=args.num_workers,
-                                                    in_memory=args.dataset_in_memory)
-    else:
-        raise NotImplementedError('Please implement another dataset.')
-    
-
 def compute_accuracies(loader, classifier):
     probas, y_test_init = classifier.evaluate_(loader)
     top1, top5 = accuracy(probas, y_test_init, topk=(1, 5))
     return probas, top1, top5
 
-    
+
 def update_accuracies(class_remap, curr_max_class, classifier, accuracies, save_dir, batch_size, shuffle, dataset, logger):
     seen_classes_test_loader = get_class_data_loader(args, class_remap, False, 0, curr_max_class, batch_size=batch_size, shuffle=shuffle, dataset=dataset, return_item_ix=True)
     seen_probas, seen_top1, seen_top5 = compute_accuracies(seen_classes_test_loader, classifier)
@@ -70,12 +79,19 @@ def update_accuracies(class_remap, curr_max_class, classifier, accuracies, save_
     log_t = len(accuracies['seen_classes_top1'])
     logger.result('Test Accuracy', seen_top1, log_t)
 
+    # save accuracies and predictions out
+    # save_accuracies(accuracies, min_class_trained=0, max_class_trained=curr_max_class, save_path=save_dir)
+    # save_predictions(seen_probas, 0, curr_max_class, save_dir)
+
 
 def streaming_class_iid_training(args, classifier, class_remap):
     start_time = time.time()
-    logger = Logger(args.save_dir)
+    date = dt.datetime.now()
+    date = date.strftime("%Y_%m_%d_%H_%M_%S")
+    logger = Tensor_Logger(args.save_dir + "/" + date)
     # start list of accuracies
     accuracies = {'seen_classes_top1': [], 'seen_classes_top5': []}
+    # save_name = "model_weights_min_trained_0_max_trained_%d"
 
     # loop over all data and compute accuracy after every "batch"
     for curr_class_ix in range(0, args.num_classes, args.class_increment):
@@ -89,17 +105,24 @@ def streaming_class_iid_training(args, classifier, class_remap):
         # fit model
         classifier.train_(train_loader)
 
+        # if curr_class_ix != 0 and ((curr_class_ix + 1) % args.evaluate_increment == 0):
+            # print("\nEvaluating classes from {} to {}".format(0, max_class))
+            # output accuracies to console and save out to json file
         update_accuracies(class_remap, max_class, classifier, accuracies, args.save_dir, args.batch_size, shuffle=False, dataset=args.dataset, logger=logger)
+            # classifier.save_model(save_dir, save_name % max_class)
 
     # print final accuracies and time
-    test_loader = get_class_data_loader(args, class_remap, False, 0, args.num_classes, batch_size=args.batch_size, shuffle=False, dataset=args.dataset, return_item_ix=True)
+    test_loader = get_class_data_loader(args, class_remap, False, 0, args.num_classes, batch_size=args.batch_size,
+                                        shuffle=False, dataset=args.dataset, return_item_ix=True)
     probas, y_test = classifier.evaluate_(test_loader)
     top1, top5 = accuracy(probas, y_test, topk=(1, 5))
+    # accuracies['seen_classes_top1'].append(float(top1))
+    # accuracies['seen_classes_top5'].append(float(top5))
 
     # save accuracies, predictions, and model out
-    save_accuracies(accuracies, min_class_trained=0, max_class_trained=args.num_classes, save_path=args.save_dir)
-    save_predictions(probas, 0, args.num_classes, args.save_dir)
-    classifier.save_model(args.save_dir, "model_weights_final")
+    # save_accuracies(accuracies, min_class_trained=0, max_class_trained=args.num_classes, save_path=args.save_dir)
+    # save_predictions(probas, 0, args.num_classes, args.save_dir)
+    # classifier.save_model(args.save_dir, "model_weights_final")
 
     end_time = time.time()
     total_time = end_time - start_time
@@ -111,6 +134,7 @@ def streaming_class_iid_training(args, classifier, class_remap):
     logger.result('Total Time (seconds)', total_time, 1)
     metric_dict = {'metric': top1}
     logger.config(config=args, metric_dict=metric_dict)
+
 
 
 def streaming_iid_training(args, classifier):
@@ -140,9 +164,9 @@ def streaming_iid_training(args, classifier):
     accuracies['top5'].append(float(top5))
 
     # save accuracies, predictions, and model out
-    save_accuracies(accuracies, min_class_trained=0, max_class_trained=args.num_classes, save_path=args.save_dir)
-    save_predictions(probas, 0, args.num_classes, args.save_dir)
-    classifier.save_model(args.save_dir, "model_weights_final")
+    # save_accuracies(accuracies, min_class_trained=0, max_class_trained=args.num_classes, save_path=args.save_dir)
+    # save_predictions(probas, 0, args.num_classes, args.save_dir)
+    # classifier.save_model(args.save_dir, "model_weights_final")
 
     end_time = time.time()
     print('\nModel Updates: ', classifier.num_updates)
@@ -165,6 +189,11 @@ def evaluate(args, classifier):
     accuracies['top1'].append(float(top1))
     accuracies['top5'].append(float(top5))
 
+    # save accuracies, predictions, and model out
+    # save_accuracies(accuracies, min_class_trained=0, max_class_trained=args.num_classes, save_path=args.save_dir)
+    # save_predictions(probas, 0, args.num_classes, args.save_dir)
+    # classifier.save_model(args.save_dir, "model_weights_final")
+
     end_time = time.time()
     print('\nModel Updates: ', classifier.num_updates)
     print('\nFinal: top1=%0.2f%% -- top5=%0.2f%%' % (top1, top5))
@@ -175,7 +204,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     # directory parameters
-    parser.add_argument('--dataset', type=str, default='CIFAR10', choices=['MNIST', 'CIFAR10', 'CIFAR100', 'places', 'imagenet', 'places_lt'])
+    parser.add_argument('--dataset', type=str, default='CIFAR10', choices=['CIFAR10', 'CIFAR100', 'CUB200', 'TinyImageNet'])
     parser.add_argument('--h5_features_dir', type=str, default=None)
     parser.add_argument('--save_dir', type=str, default=None)
     parser.add_argument('--expt_name', type=str)
@@ -186,7 +215,9 @@ if __name__ == '__main__':
     parser.add_argument('--dataset_in_memory', type=bool_flag, default=True)
     parser.add_argument('--num_workers', type=int, default=0)
     parser.add_argument('--device', type=str, default='cuda')
-    parser.add_argument('--arch', type=str, default='resnet18') # choices=['resnet18', 'mobilenet_v3_small', 'mobilenet_v3_large', 'efficientnet_b0', 'efficientnet_b1']
+    parser.add_argument('--arch', type=str,
+                        choices=['resnet18', 'mobilenet_v3_small', 'mobilenet_v3_large', 'efficientnet_b0',
+                                 'efficientnet_b1'])
     parser.add_argument('--num_classes', type=int, default=365)  # total number of classes in the dataset
     parser.add_argument('--batch_size', type=int, default=512)  # batch size for testing
     parser.add_argument('--class_increment', type=int, default=1)
@@ -220,20 +251,52 @@ if __name__ == '__main__':
 
     makedirs(args.save_dir)
 
-    arch_values = args.arch.split(',')
-
-    for arch_value in arch_values:
-        args.input_feature_size = get_feature_size(arch_value)
-    
-    input_feature1 = get_feature_size(arch_values[0])
-    input_feature2 = get_feature_size(arch_values[1])
+    args.input_feature_size = get_feature_size(args.arch)
 
     # setup continual model
     print('\nUsing the %s continual learning model.' % args.cl_model)
-    if args.cl_model == 'ncm':
+    if args.cl_model == 'slda':
+        classifier = StreamingLDA(args.input_feature_size, args.num_classes,
+                                  shrinkage_param=args.shrinkage, streaming_update_sigma=args.streaming_update_sigma)
+    elif args.cl_model == 'fine_tune':
+        classifier = StreamingSoftmax(args.input_feature_size, args.num_classes, use_replay=False,
+                                      lr=args.lr, weight_decay=args.wd)
+        if args.ckpt is not None:
+            classifier.load_model(args.ckpt)
+    elif args.cl_model == 'replay':
+        classifier = StreamingSoftmax(args.input_feature_size, args.num_classes, use_replay=True,
+                                      lr=args.lr, weight_decay=args.wd, replay_samples=args.replay_size,
+                                      max_buffer_size=args.buffer_size)
+        if args.ckpt is not None:
+            classifier.load_model(args.ckpt)
+    elif args.cl_model == 'nb':
+        classifier = NaiveBayes(args.input_feature_size, args.num_classes, shrinkage_param=args.shrinkage)
+        if args.ckpt is not None:
+            classifier.load_model(args.ckpt)
+    elif args.cl_model == 'ncm':
         classifier = NearestClassMean(args.input_feature_size, args.num_classes)
+        if args.ckpt is not None:
+            classifier.load_model(args.ckpt)
+    elif args.cl_model == 'ovr':
+        classifier = OneVsRest(args.input_feature_size, args.num_classes)
+        if args.ckpt is not None:
+            classifier.load_model(args.ckpt)
+    elif args.cl_model == 'perceptron':
+        classifier = Perceptron(args.input_feature_size, args.num_classes)
+        if args.ckpt is not None:
+            classifier.load_model(args.ckpt)
+    elif args.cl_model == 'cbcl':
+        classifier = CBCL(args.input_feature_size, args.num_classes, buffer_size=args.buffer_size,
+                          distance_threshold=args.distance_threshold,
+                          cluster_removal_approach=args.cluster_removal_approach, topk=args.topk_clusters,
+                          weighted_pred=args.weighted_predictions)
+        if args.ckpt is not None:
+            classifier.load_model(args.ckpt)
     else:
         raise NotImplementedError
+    
+    # output_params = sum(p.numel() for p in classifier.parameters())
+    # print(output_params)
     
     if args.evaluate:
         evaluate(args, classifier)

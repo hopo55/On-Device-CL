@@ -231,18 +231,26 @@ def get_feature_size(arch):
     return c
 
 
-def get_backbone(arch, pooling_type):
-    feature_size = get_feature_size(arch)
+def get_backbone(arch_list, pooling_type):
+    model_list = []
+    feature_list = []
 
-    model = models.__dict__[arch](pretrained=True)
-    model.classifier = nn.Sequential()
-    if arch == 'resnet18':
-        model.fc = nn.Sequential()
-    if pooling_type == 'max':
-        print('replacing global average pooling with max pooling...')
-        model.avgpool = nn.AdaptiveMaxPool2d(output_size=1)
+    for arch in arch_list:
 
-    return model, feature_size
+        feature_size = get_feature_size(arch)
+        feature_list.append(feature_size)
+
+        model = models.__dict__[arch](pretrained=True)
+        model.classifier = nn.Sequential()
+        if arch == 'resnet18':
+            model.fc = nn.Sequential()
+        if pooling_type == 'max':
+            print('replacing global average pooling with max pooling...')
+            model.avgpool = nn.AdaptiveMaxPool2d(output_size=1)
+
+        model_list.append(model)
+
+    return model_list, feature_list
 
 
 def bool_flag(s):
