@@ -12,11 +12,13 @@ CLASS_INCRE=1
 IN_MEMORY=0
 NUM_WORKERS=8
 PERMUTATION_SEED=0
-SAVE_DIR=Feature-CL/results/
+SAVE_DIR=Feature-CL/results
 DEVICE='1'
 
-MODEL='resnet18 mobilenet_v3_small'
-MODEL_NAME='resnet18_mobilenet_v3_large'
+# ['resnet18', 'mobilenet_v3_small', 'mobilenet_v3_large', 'efficientnet_b0', 'efficientnet_b1']
+# torchvision.models = [alexnet, convnext, densenet, efficientnet, googlenet, inception, mnasnet, mobilenet, regnet, resnet, shufflenetv2, squeezenet, vgg]
+MODEL='resnet18 mobilenet_v3_large mobilenet_v3_small efficientnet_b0 efficientnet_b1'
+MODEL_NAME='resnet18_mobilenet_v3_large_mobilenet_v3_small_efficientnet_b0_efficientnet_b1'
 CACHE=${CACHE_PATH}/${DATASET}/
 
 # Extract Features
@@ -32,7 +34,7 @@ python -u Feature-CL/cache_features.py \
 
 # Ensemble Model
 CL_MODEL=ncm
-EXPT_NAME=${DATASET}/${CL_MODEL}/${MODEL}_${POOL}_${DATA_ORDER}
+EXPT_NAME=${DATASET}/${CL_MODEL}/
 
 python -u Feature-CL/main.py \
   --arch ${MODEL} \
@@ -43,9 +45,10 @@ python -u Feature-CL/main.py \
   --class_increment ${CLASS_INCRE} \
   --h5_features_dir ${CACHE} \
   --expt_name ${EXPT_NAME} \
-  --save_dir ${SAVE_DIR}${EXPT_NAME} \
+  --save_dir ${SAVE_DIR}/${EXPT_NAME} \
   --data_ordering ${DATA_ORDER} \
-  --dataset_in_memory ${IN_MEMORY} \
   --num_workers ${NUM_WORKERS} \
   --permutation_seed ${PERMUTATION_SEED} \
   --device ${DEVICE}
+
+  # --dataset_in_memory ${IN_MEMORY} \

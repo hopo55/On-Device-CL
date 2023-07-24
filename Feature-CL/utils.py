@@ -167,7 +167,7 @@ class TFSubLogger:
     def message(self, message, name=""):
         self.parent_logger.message(message, self.prefix + "/" + name)
 
-
+'''
 class Logger:
     def add_scalar(self, name, value, iteration):
         raise NotImplementedError
@@ -202,7 +202,7 @@ class TFLogger(SummaryWriter, Logger):
 
     def get_logger(self, name):
         return TFSubLogger(self, name)
-
+'''
 
 def save_predictions(y_pred, min_class_trained, max_class_trained, save_path, suffix=''):
     name = 'preds_min_trained_' + str(min_class_trained) + '_max_trained_' + str(max_class_trained) + suffix
@@ -216,19 +216,32 @@ def save_accuracies(accuracies, min_class_trained, max_class_trained, save_path,
 
 
 def get_feature_size(arch):
-    if arch == 'resnet18':
-        c = 512
-    elif arch == 'mobilenet_v3_small':
-        c = 576
-    elif arch == 'mobilenet_v3_large':
-        c = 960
-    elif arch == 'efficientnet_b0':
-        c = 1280
-    elif arch == 'efficientnet_b1':
-        c = 1280
+    c = {
+        'resnet18': 512,
+        'resnet50': 1000,
+        'mobilenet_v3_small': 576,
+        'mobilenet_v3_large': 960,
+        'efficientnet_b0': 1280,
+        'efficientnet_b1': 1280,
+    }
+
+    if len(arch) == 1:
+        return c[arch[0]]  # Use the first element of arch as the key
     else:
-        raise ValueError('arch not found: ' + arch)
-    return c
+        # avg_size = 0
+        # for model in arch:
+        #     avg_size += c[model]
+            
+        # avg_size /= len(arch)
+
+        # return int(avg_size)
+        size_list = []
+        for model in arch:
+            size_list.append(c[model])
+
+        f_size = min(size_list)
+
+        return f_size
 
 
 def get_backbone(arch_list, pooling_type):
@@ -236,8 +249,7 @@ def get_backbone(arch_list, pooling_type):
     feature_list = []
 
     for arch in arch_list:
-
-        feature_size = get_feature_size(arch)
+        feature_size = get_feature_size([arch])
         feature_list.append(feature_size)
 
         model = models.__dict__[arch](pretrained=True)
@@ -272,7 +284,7 @@ def _make_path_if_local(tb_log_dir: Union[str, Path]) -> Union[str, Path]:
     tb_log_dir.mkdir(parents=True, exist_ok=True)
     return tb_log_dir
 
-class Logger():
+class Tensor_Logger():
     def __init__(self, path):
         self.path = path
         tb_log_dir = _make_path_if_local(self.path)

@@ -28,6 +28,7 @@ def make_h5_feature_file(dataset, model, loader, h5_file_full_path, data_type, f
         # print('removed old h5 file')
         print('file already exists')
         return
+
     h5_file = h5py.File(h5_file_full_path, 'w')
 
     # preset array sizes
@@ -81,7 +82,7 @@ def cache_features(args):
     backbone_list, feature_list = get_backbone(args.arch, args.pooling_type)
 
     for arch_name, backbone, feature_size in zip(args.arch, backbone_list, feature_list):
-        folder_name = args.cache_h5_dir + arch_name + '_' + args.pooling_type
+        folder_name = args.cache_h5_dir + arch_name
         print('\n' + arch_name)
         print('caching val features...')
         make_h5_feature_file(args.dataset, backbone, val_loader, os.path.join(folder_name, 'val_features.h5'), 'val', feature_size, args.device)
@@ -108,7 +109,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     for arch_name in args.arch:
-        folder_name = args.cache_h5_dir + arch_name + '_' + args.pooling_type
+        folder_name = args.cache_h5_dir + arch_name
         makedirs(folder_name)
 
     cache_features(args)

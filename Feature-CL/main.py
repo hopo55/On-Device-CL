@@ -20,15 +20,23 @@ from models.CBCL import CBCL
 def get_class_data_loader(args, class_remap, training, min_class, max_class, batch_size=128, shuffle=False,
                           dataset='places', return_item_ix=False):
     if dataset == 'CIFAR10' or dataset == 'CIFAR100' or dataset == 'CUB200' or dataset == 'TinyImageNet':
-        
-        h5_file_path = os.path.join(args.h5_features_dir, '%s_features.h5')
-        if training:
-            data = 'train'
-            return_item_ix = return_item_ix
-        else:
-            data = 'val'
-            return_item_ix = False
-        return make_incremental_features_dataloader(class_remap, h5_file_path % data, min_class, max_class,
+
+        h5_file_path_list = []
+
+        for arch_name in args.arch:
+            h5_file_path = args.h5_features_dir + arch_name
+            h5_file_path = os.path.join(h5_file_path, '%s_features.h5')
+
+            if training:
+                data = 'train'
+                return_item_ix = return_item_ix
+            else:
+                data = 'val'
+                return_item_ix = False
+            
+            h5_file_path_list.append(h5_file_path % data)
+
+        return make_incremental_features_dataloader(args.input_feature_size, class_remap, h5_file_path_list, min_class, max_class,
                                                     batch_size=batch_size, shuffle=shuffle,
                                                     return_item_ix=return_item_ix, num_workers=args.num_workers,
                                                     in_memory=args.dataset_in_memory)
@@ -44,7 +52,7 @@ def set_seed(seed):
     np.random.seed(seed)
     random.seed(seed)
 
-
+'''
 def get_iid_data_loader(args, training, batch_size=128, shuffle=False, dataset='places', return_item_ix=False):
     if dataset == 'places' or dataset == 'imagenet' or dataset == 'places_lt':
         h5_file_path = os.path.join(args.h5_features_dir, '%s_features.h5')
@@ -60,7 +68,7 @@ def get_iid_data_loader(args, training, batch_size=128, shuffle=False, dataset='
                                         return_item_ix=return_item_ix, in_memory=args.dataset_in_memory)
     else:
         raise NotImplementedError('Please implement another dataset.')
-
+'''
 
 def compute_accuracies(loader, classifier):
     probas, y_test_init = classifier.evaluate_(loader)
@@ -132,11 +140,12 @@ def streaming_class_iid_training(args, classifier, class_remap):
 
     logger.result('Final Test Accuracy', top1, 1)
     logger.result('Total Time (seconds)', total_time, 1)
-    metric_dict = {'metric': top1}
-    logger.config(config=args, metric_dict=metric_dict)
+    # top1 = top1[0].item()
+    args.arch = 'resnet18_mobilenet_v3_large'
+    metric_dict = {'metric': top1[0]}
+    logger.config(args, metric_dict)
 
-
-
+'''
 def streaming_iid_training(args, classifier):
     start_time = time.time()
     # start list of accuracies
@@ -198,7 +207,7 @@ def evaluate(args, classifier):
     print('\nModel Updates: ', classifier.num_updates)
     print('\nFinal: top1=%0.2f%% -- top5=%0.2f%%' % (top1, top5))
     print('\nTotal Time (seconds): %0.2f' % (end_time - start_time))
-
+'''
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -209,15 +218,16 @@ if __name__ == '__main__':
     parser.add_argument('--save_dir', type=str, default=None)
     parser.add_argument('--expt_name', type=str)
     parser.add_argument('--ckpt', type=str, default=None)
-    parser.add_argument('--evaluate', type=bool_flag, default=False)
+    # parser.add_argument('--evaluate', type=bool_flag, default=False)
 
     # general parameters
-    parser.add_argument('--dataset_in_memory', type=bool_flag, default=True)
+    # parser.add_argument('--dataset_in_memory', type=bool_flag, default=True)
+    parser.add_argument('--dataset_in_memory', type=bool, default=False)
+    # parser.add_argument('--dataset_in_memory', type=bool, default=False)
     parser.add_argument('--num_workers', type=int, default=0)
     parser.add_argument('--device', type=str, default='cuda')
-    parser.add_argument('--arch', type=str,
-                        choices=['resnet18', 'mobilenet_v3_small', 'mobilenet_v3_large', 'efficientnet_b0',
-                                 'efficientnet_b1'])
+    parser.add_argument('--arch', nargs='+', type=str, default=['resnet18', 'mobilenet_v3_small'])
+    # , choices=['resnet18', 'mobilenet_v3_small', 'mobilenet_v3_large', 'efficientnet_b0', 'efficientnet_b1']
     parser.add_argument('--num_classes', type=int, default=365)  # total number of classes in the dataset
     parser.add_argument('--batch_size', type=int, default=512)  # batch size for testing
     parser.add_argument('--class_increment', type=int, default=1)
@@ -225,10 +235,11 @@ if __name__ == '__main__':
     parser.add_argument('--cl_model', type=str, default='slda',
                         choices=['slda', 'fine_tune', 'replay', 'ncm', 'nb', 'ovr', 'perceptron', 'cbcl'])
     parser.add_argument('--permutation_seed', type=int, default=0)
-    parser.add_argument('--data_ordering', default='class_iid', choices=['class_iid', 'iid'])
+    parser.add_argument('--data_ordering', type=str, default='class_iid', choices=['class_iid', 'iid'])
 
     # SLDA/Naive Bayes parameters
-    parser.add_argument('--streaming_update_sigma', type=bool_flag, default=True)  # true to update covariance online
+    # parser.add_argument('--streaming_update_sigma', type=bool_flag, default=True)  # true to update covariance online
+    parser.add_argument('--streaming_update_sigma', type=bool, default=True)  # true to update covariance online
     parser.add_argument('--shrinkage', type=float, default=1e-4)  # shrinkage for SLDA/Naive Bayes
 
     # Fine-Tune & Replay parameters
@@ -241,17 +252,19 @@ if __name__ == '__main__':
     parser.add_argument('--cluster_removal_approach', type=str, default='min_dist', choices=['min_dist', 'max'])
     parser.add_argument('--distance_threshold', type=float, default=70)
     parser.add_argument('--topk_clusters', type=int, default=1)
-    parser.add_argument('--weighted_predictions', type=bool_flag, default=True)
 
     args = parser.parse_args()
     # print("Arguments {}".format(json.dumps(vars(args), indent=4, sort_keys=True)))
 
     if args.save_dir is None:
         args.save_dir = 'streaming_experiments/' + args.expt_name
+    else:
+        args.save_dir += '_'.join(args.arch) + '_' + args.data_ordering
 
     makedirs(args.save_dir)
 
     args.input_feature_size = get_feature_size(args.arch)
+    print("feature size : ", args.input_feature_size)
 
     # setup continual model
     print('\nUsing the %s continual learning model.' % args.cl_model)
@@ -285,27 +298,21 @@ if __name__ == '__main__':
         classifier = Perceptron(args.input_feature_size, args.num_classes)
         if args.ckpt is not None:
             classifier.load_model(args.ckpt)
-    elif args.cl_model == 'cbcl':
-        classifier = CBCL(args.input_feature_size, args.num_classes, buffer_size=args.buffer_size,
-                          distance_threshold=args.distance_threshold,
-                          cluster_removal_approach=args.cluster_removal_approach, topk=args.topk_clusters,
-                          weighted_pred=args.weighted_predictions)
-        if args.ckpt is not None:
-            classifier.load_model(args.ckpt)
     else:
         raise NotImplementedError
     
     # output_params = sum(p.numel() for p in classifier.parameters())
     # print(output_params)
     
-    if args.evaluate:
-        evaluate(args, classifier)
+    # if args.evaluate:
+    #     pass
+    #     # evaluate(args, classifier)
+    # else:
+    if args.data_ordering == 'class_iid':
+        # get class ordering
+        class_remap = remap_classes(args.num_classes, args.permutation_seed)
+        streaming_class_iid_training(args, classifier, class_remap)
+    # elif args.data_ordering == 'iid':
+    #     streaming_iid_training(args, classifier)
     else:
-        if args.data_ordering == 'class_iid':
-            # get class ordering
-            class_remap = remap_classes(args.num_classes, args.permutation_seed)
-            streaming_class_iid_training(args, classifier, class_remap)
-        elif args.data_ordering == 'iid':
-            streaming_iid_training(args, classifier)
-        else:
-            raise NotImplementedError
+        raise NotImplementedError

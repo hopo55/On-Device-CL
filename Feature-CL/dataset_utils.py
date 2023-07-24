@@ -2,6 +2,7 @@ import os
 from PIL import Image
 import h5py
 import numpy as np
+from scipy import interpolate
 
 import torch.utils.data
 from torch.utils.data import DataLoader, Dataset, ConcatDataset, random_split
@@ -185,25 +186,51 @@ def make_features_dataloader(h5_file_path, batch_size, num_workers=8, shuffle=Fa
     loader = torch.utils.data.DataLoader(dataset, num_workers=num_workers, shuffle=shuffle, batch_size=batch_size)
     return loader
 
+class RescaleTform:
+    def __init__(self, output_size):
+        assert isinstance(output_size, (int, tuple))
+        self.output_size = output_size
 
-def make_incremental_features_dataloader(class_remap, h5_file_path, min_class, max_class, batch_size, num_workers=8,
+    def __call__(self, sample):
+        # img = torch.nn.functional.interpolate(sample.unsqueeze(0), size=self.output_size, mode='bilinear', align_corners=False)
+
+        old_indices = np.linspace(0, 1, sample.shape[0])
+        new_indices = np.linspace(0, 1, self.output_size)
+        interpolation_func = interpolate.interp1d(old_indices, sample)
+        resampled_array = interpolation_func(new_indices)
+
+        return resampled_array
+
+def make_incremental_features_dataloader(feat_size, class_remap, h5_file_path_list, min_class, max_class, batch_size, num_workers=8,
                                          shuffle=False, return_item_ix=False, in_memory=True):
-    # filter labels between min_class and max_class with class_remap
-    h5 = h5py.File(h5_file_path, 'r')
-    labels = np.array(h5['labels'], dtype=np.int64)
+    
+    total_dataset = []
+    for idx, h5_file_path in enumerate(h5_file_path_list):
+        # filter labels between min_class and max_class with class_remap
+        h5 = h5py.File(h5_file_path, 'r')
+        labels = np.array(h5['labels'], dtype=np.int64)
 
-    class_list = []
-    for i in range(min_class, max_class):
-        class_list.append(class_remap[i])
+        class_list = []
+        for i in range(min_class, max_class):
+            class_list.append(class_remap[i])
 
-    curr_idx = filter_by_class(labels, np.array(class_list))
+        curr_idx = filter_by_class(labels, np.array(class_list))
 
-    # make subset dataset with selected classes
-    if in_memory:
-        dataset = FeaturesDatasetInMemory(h5_file_path, return_item_ix=False)
-    else:
-        dataset = FeaturesDataset(h5_file_path, return_item_ix=False)
-    loader = setup_subset_dataloader(dataset, curr_idx, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers,
+        composed = transforms.Compose([RescaleTform(feat_size)])
+
+        # make subset dataset with selected classes
+        if in_memory:
+            dataset = FeaturesDatasetInMemory(h5_file_path, return_item_ix=False, transform=RescaleTform(feat_size))
+        else:
+            dataset = FeaturesDataset(h5_file_path, return_item_ix=False, transform=composed)
+
+        total_dataset.append(dataset)
+        # if idx == 0:
+        #     total_dataset = dataset
+        # else:
+        #     total_dataset = ConcatDataset([total_dataset, dataset])
+
+    loader = setup_subset_dataloader(total_dataset, curr_idx, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers,
                                      return_item_ix=return_item_ix)
 
     return loader
@@ -230,6 +257,22 @@ class IndexSampler(torch.utils.data.Sampler):
     def __len__(self):
         return len(self.indices)
 
+class AverageDataset(Dataset):
+    def __init__(self, datasets):
+        self.datasets = datasets
+
+    def __len__(self):
+        return len(self.datasets[0])
+
+    def __getitem__(self, idx):
+        sum_data = 0
+        for dataset in self.datasets:
+            sum_data += dataset[idx][0]
+
+        x = sum_data / len(self.datasets)
+        y = self.datasets[0][idx][1]
+        
+        return x, y
 
 class PartialDataset(Dataset):
     def __init__(self, data, indices, return_item_ix):
@@ -248,7 +291,7 @@ class PartialDataset(Dataset):
             return x, y
 
 
-def setup_subset_dataloader(dataset, idxs, batch_size=256, shuffle=False, sampler=None, batch_sampler=None,
+def setup_subset_dataloader(total_dataset, idxs, batch_size=256, shuffle=False, sampler=None, batch_sampler=None,
                             num_workers=8, return_item_ix=False):
     if batch_sampler is None and sampler is None:
         if shuffle:
@@ -256,7 +299,9 @@ def setup_subset_dataloader(dataset, idxs, batch_size=256, shuffle=False, sample
         else:
             sampler = IndexSampler(idxs)
 
-    dataset = PartialDataset(dataset, idxs, return_item_ix)
+    avg_dataset = AverageDataset(total_dataset)
+    dataset = PartialDataset(avg_dataset, idxs, return_item_ix)
+
     loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, num_workers=num_workers,
                                          pin_memory=True, batch_sampler=batch_sampler, sampler=sampler)
     return loader
